@@ -1,6 +1,9 @@
+import asyncio
 from datetime import datetime
 
 from qtrade import Questrade
+
+from utils.util import log_exception
 
 
 class QuestradeClient:
@@ -13,6 +16,21 @@ class QuestradeClient:
 
     def refresh_access_token(self):
         self.client.refresh_access_token(from_yaml=True, yaml_path=self.yaml_path)
+
+    def run_refresh_loop(self):
+        async def token_refresh_periodic(self):
+            async def refresh_token():
+                try:
+                    self.refresh_access_token()
+                except Exception as e:
+                    log_exception(e, "refresh_token")
+
+            while True:
+                await asyncio.sleep(600)
+                await refresh_token()
+
+        loop = asyncio.get_event_loop()
+        loop.create_task(token_refresh_periodic())
 
     def get_nope(self):
         call_option_filters = []

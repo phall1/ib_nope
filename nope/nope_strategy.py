@@ -1,9 +1,11 @@
 import asyncio
+import logging
 
 from ib_insync import IB, Option, Stock, TagValue, util
 from ib_insync.order import LimitOrder
 
-from qt.qtrade_client import QuestradeClient
+from data_client.qt.qtrade_client import QuestradeClient
+from data_client.tda_client import TDAClient
 from utils.util import (
     get_datetime_for_logging,
     log_exception,
@@ -21,8 +23,26 @@ class NopeStrategy:
         self.ib = ib
         self._nope_value = 0
         self._underlying_price = 0
-        self.qt = QuestradeClient(token_yaml=self.QT_ACCESS_TOKEN)
-        self.run_qt_tasks()
+        self.data_client = self.create_client(config)
+        self.run_data_fetching_tasks()
+
+    def create_client(self, config):
+        client_name = config["default_client"].lower()
+        if client_name == "qt":
+            logging.info("Creating Questrade Client")
+            return QuestradeClient(token_yaml=self.QT_ACCESS_TOKEN)
+        elif client_name == "tda":
+            logging.info("Creating TDA client")
+            token_path = config["tda"]["token_path"]
+            api_key = config["tda"]["api_key"]
+            redirect_uri = config["tda"]["redirect_uri"]
+
+            return TDAClient(
+                api_key=api_key, redirect_uri=redirect_uri, token_path=token_path
+            )
+        else:
+            logging.error("Client not created, no client passed")
+            exit(1)
 
     def req_market_data(self):
         # https://interactivebrokers.github.io/tws-api/market_data_type.html
@@ -31,7 +51,8 @@ class NopeStrategy:
         self.ib.reqPositions()
 
     def set_nope_value(self):
-        self._nope_value, self._underlying_price = self.qt.get_nope()
+        self._nope_value, self._underlying_price = self.data_client.get_nope()
+        print(self._nope_value, self._underlying_price)
 
     def get_portfolio(self):
         portfolio = self.ib.portfolio()
@@ -268,7 +289,7 @@ class NopeStrategy:
         loop = asyncio.get_event_loop()
         return loop.create_task(ib_periodic())
 
-    def run_qt_tasks(self):
+    def run_data_fetching_tasks(self):
         async def nope_periodic():
             async def fetch_and_report():
                 try:
@@ -285,20 +306,8 @@ class NopeStrategy:
             while True:
                 await asyncio.gather(asyncio.sleep(60), fetch_and_report())
 
-        async def token_refresh_periodic():
-            async def refresh_token():
-                try:
-                    self.qt.refresh_access_token()
-                except Exception as e:
-                    log_exception(e, "refresh_token")
-
-            while True:
-                await asyncio.sleep(600)
-                await refresh_token()
-
         loop = asyncio.get_event_loop()
         loop.create_task(nope_periodic())
-        loop.create_task(token_refresh_periodic())
 
     def execute(self):
         self.req_market_data()

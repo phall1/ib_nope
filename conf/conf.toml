@@ -1,15 +1,6 @@
-[nope]
-long_enter = -60
-long_exit  = -30
-short_enter = 50
-short_exit  = 35
-call_limit = 5
-put_limit = 5
-call_quantity = 1
-put_quantity = 1
-expiry_offset = 2
-call_strike_offset = 1
-put_strike_offset = 1
+default_client = "TDA"
+# default_client = ""
+verbose = true
 
 [debug]
 enabled = false

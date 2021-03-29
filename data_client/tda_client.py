@@ -2,18 +2,13 @@ import atexit
 from datetime import datetime
 from functools import reduce
 
+import tda
 import toml
 
-from tda.auth import easy_client
+# from tda.auth import easy_client
 
 with open("conf/conf.toml", "r") as f:
     config = toml.load(f)
-
-# Use conf.toml for these values
-token_path = config["tda"]["token_path"]
-api_key = config["tda"]["api_key"]
-redirect_uri = config["tda"]["redirect_uri"]
-account_id = config["tda"]["account_id"]
 
 
 class OptionType:
@@ -26,7 +21,12 @@ class OptionType:
 class TDAClient:
     ticker = "SPY"
 
-    def __init__(self):
+    def __init__(
+        self,
+        token_path,
+        redirect_uri,
+        api_key,
+    ):
         def make_webdriver():
             from selenium import webdriver
 
@@ -34,7 +34,7 @@ class TDAClient:
             atexit.register(lambda: driver.quit())
             return driver
 
-        self.client = easy_client(
+        self.client = tda.auth.easy_client(
             api_key=api_key,
             redirect_uri=redirect_uri,
             token_path=token_path,
